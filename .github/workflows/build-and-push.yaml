@@ -1,0 +1,46 @@
+name: Build and Push ZITADEL Login to ACR
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  ACR_NAME: crsagaregistrypdnoeast3f65c454
+  IMAGE_NAME: zitadel-login
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: acr-identity
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: 8d8a6b78-a40c-4893-b9a2-bb637a212acc
+
+      - name: Login to ACR
+        run: az acr login -n ${{ env.ACR_NAME }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Short SHA
+        id: short
+        run: echo "sha=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.short.outputs.sha }}
